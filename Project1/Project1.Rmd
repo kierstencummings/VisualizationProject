@@ -1,0 +1,87 @@
+---
+title: "Exploring Meteorite Data"
+author: "Kiersten Lee Cummings"
+date: "March 1, 2024"
+output: 
+  html_document:
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_download: true
+---
+
+```{r, include =  FALSE, echo = FALSE, warning = FALSE, message = FALSE}
+library(tidyverse)
+library(dplyr)
+library(plyr)
+library(ggplot2)
+library(ggpubr)
+library(ggthemes)
+meteorites <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-06-11/meteorites.csv")
+
+# taking out data with unrealistic location data and year
+meteorites <- subset(meteorites, name != "Meridiani Planum" & name != "Northwest Africa 7701")
+# code referenced from https://stackoverflow.com/a/74154113
+# background image from https://as2.ftcdn.net/v2/jpg/03/28/89/61/1000_F_328896165_i0TWGgJTtDWyIjKhYKcAUoA0rKiXYyx6.jpg
+world_map <- png::readPNG("world_map.png")
+america_map <- png::readPNG("south_america_map.png")
+
+big_meteorites <- meteorites %>% 
+  slice_max(mass, n = 25)
+```
+
+## Exploring Meteorite Location and Mass Data
+
+I am fascinated by space and by the strange, objects floating just outside of our gravity. Meteorites are little pieces of space that land on earth, and they've always been an interest of mine. NASA has recorded information about over 45,000 meteorites as of 2013, though it's likely many more have discovered since then. Using NASA's meteorite landing data via [TidyTuesday](https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-06-11), we can examine information like year and geolocation of discovery, mass of meteorite, and class categorization of the rocks. I would highly recommend viewing the data for yourself—it's an extensive dataset with some very interesting information.
+
+### But, what exactly are meteorites?
+
+To figure out what meteorites are, we also have to know about [meteoroids and meteors](https://science.nasa.gov/solar-system/meteors-meteorites/).
+
+- Meteoroids: space rocks—they haven't (yet) entered Earth's atmosphere
+- Meteors: meteoroids that enter the atmosphere, quickly burning up into what we call "shooting stars"
+- Meteorites: part of a meteoroids that survives the trip to Earth, hitting land
+
+Because of meteorites landings, scientists have pieces of space to examine, without leaving Earth's gravity!
+
+### Recorded Meteorites Landings
+
+Meteorites have been discovered on every continent, though some places appear to get more meteorite landings than others. I chose to display these locations by plotting the latitude and longitude on a scatter plot, then placing a world map in the background to show the locations, as seen below. Each purple point represents a meteorite landing location, and the gray dotted line represents the equator.
+
+```{r, warning = FALSE, message = FALSE, eval = FALSE}
+meteorites %>% 
+  ggplot(aes(long, lat)) + background_image(world_map) + geom_point(size = 0.5, color = "darkorchid1")
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, fig.cap="*Figure 1: Meteroite landings pictured on a world map, graphed by latitude and longitude*"}
+meteorites %>% 
+  filter(lat != 0 & long != 0) %>% #removing points at (0, 0) which was likely a placeholder geolocation 
+  ggplot(aes(long, lat)) + background_image(world_map) + geom_point(size = 0.5, color = "darkorchid1") + scale_y_continuous(limits = c(-85, 85), breaks = seq(-90, 90, by =30), labels = c("-90°", "-60°", "-30°", "0°", "30°", "60°", "90°")) + scale_x_continuous(limits = c(-160, 160), breaks = seq(-180, 180, by =60), labels = c("-180°", "-120°", "-60°", "0°", "60°", "120°", "180°")) + labs(title = "Meteorite Landing Locations (860-2013)", subtitle = "by Latitude and Longitude", caption = "Source: NASA\nImage Source: Adobe Stock", x = "", y = "") + geom_hline(yintercept = 0, col = "gray", linetype ="dashed")
+```
+We can see largest concentrations of meteorite landings in North America and Europe, though this isn't necessarily because meteorites are more likely to land there. Other factors, like more extensive meteorite searching in some areas, or lost or missing records of historical meteorites, might be the reason that we see more concentrated data on those two continents.
+
+By the North and South Poles, there are significantly fewer recorded meteorites. This could be because fewer meteorites land in those areas or because meteorite landings being missed in less populous areas like the Poles.
+
+There's one aspect of this map that stands out to me. Have you spotted it yet?
+
+*Rainforests* have noticeably fewer meteorite discoveries than adjacent, non-forest areas. The Amazon Rainforest in South America, has noticeably few recorded meteorites, as well as rainforests in Africa and Asia, all of which are along the equator. I think it's very interesting that this topography characteristic stands out so distinctly. Is it because meteorites don't land frequently along the equator, where rainforests are present, or because meteorites land but are not found because of the environment? It's not clear from the graph, but it's definitely interesting to consider.
+
+### Size of Meteorites
+
+A lot of meteorites are small—and I mean *very* small. 4% of meteorites aren't even 1 gram. The median mass of a meteorite in this dataset is 33 grams.
+
+There are a few major outliers though, with the largest meteorite weighting in at 60,000 *kilograms*—it's a whopping 18,000% heavier than the median! That's the [Hoba Meteorite](https://education.nationalgeographic.org/resource/meteorite/), the largest meteorite found on Earth, but there are a few others of similar size.
+
+Let's take a look at the 25 largest discovered meteorites. On this histogram, we can see how many of each of the largest meteorite sizes are the most common, as well as easily view outliers. The different colors highlight the different years the rocks were discovered, so we can figure out when the largest meteorites tended to land on Earth.
+
+```{r, warning = FALSE, message = FALSE, eval = FALSE}
+big_meteorites %>% 
+  ggplot(aes(mass/1000, fill = year_rounded)) + geom_histogram()
+```
+
+```{r, echo = FALSE, warning = FALSE, message = FALSE, fig.cap="*Figure 2: Histogram of largest meteorites based on mass, colored by year discovered*"}
+big_meteorites %>% 
+  mutate(year_rounded = as.factor(round_any(year, 100, floor))) %>% 
+  ggplot(aes(mass/1000, fill = year_rounded)) + geom_histogram(binwidth = 5000) + labs(title = "25 Largest Meteorites By Mass", x = "Mass (kg)", y = "Count", fill = "Century Discovered", caption = "Source: NASA") + scale_y_continuous(breaks = seq(0, 10, by = 2))+ scale_color_gdocs()
+```
+Even among the top 25 largest meteorites, only 10 of them surpass 20000 kg. The histogram is right-skewed, with most of the points in the less than 10,000 kg category, though there are are 3 points larger than the most at 50,000, 58,200 and 60,000 kg. Out of the centuries depicted, the 1800s had the most large meteorites recorded, with the 1900s being a close second.
